@@ -1,0 +1,23 @@
+.container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  box-sizing: border-box;
+  align-items: center;
+}
+
+.prompt-input {
+  width: 100%;
+  flex-grow: 1;
+  margin-bottom: 20px;
+  padding: 10px;
+  font-size: 16px;
+  resize: none;
+}
+
+.analyze-btn {
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+}
