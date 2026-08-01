@@ -13,6 +13,13 @@ Prompt X is a high-performance, system-wide AI assistant designed to bridge the 
 
 </div>
 
+<p align="center">
+  <img src="./assets/Screenshot1.png" alt="Prompt X Interface" width="800">
+</p>
+<p align="center">
+  <img src="./assets/Screenshot2.png" alt="Prompt X Settings" width="800">
+</p>
+
 ---
 
 ## 📖 Table of Contents
@@ -98,6 +105,37 @@ Ensure you have the following installed on your system:
 ---
 
 ## 🏗️ Architecture & Structure
+
+### System Architecture
+
+```text
+                User
+                  │
+                  ▼
+        Global Keyboard Hook
+                  │
+                  ▼
+           Prompt X Overlay
+                  │
+                  ▼
+          Prompt Processing
+                  │
+        ┌─────────┴─────────┐
+        ▼                   ▼
+   Prompt Templates     AI Router
+                              │
+                ┌─────────────┴─────────────┐
+                ▼             ▼             ▼
+             GPT-4o        Claude       Gemini
+                │
+                ▼
+          Response Formatter
+                │
+                ▼
+      Paste Back Into Application
+```
+
+### Codebase Structure
 
 The codebase is organized for scalability and maintainability:
 
