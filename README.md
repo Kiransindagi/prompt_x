@@ -14,10 +14,10 @@ Prompt X is a high-performance, system-wide AI assistant designed to bridge the 
 </div>
 
 <p align="center">
-  <img src="./assets/Screenshot1.png" alt="Prompt X Interface" width="800">
+  <img src="./assets/screenshot_1.png" alt="Prompt X Interface" width="800">
 </p>
 <p align="center">
-  <img src="./assets/Screenshot2.png" alt="Prompt X Settings" width="800">
+  <img src="./assets/screenshot_2.png" alt="Prompt X Settings" width="800">
 </p>
 
 ---
