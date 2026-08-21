@@ -1,4 +1,4 @@
-import { getLLMAdapter, LLMType } from "../../adapters";
+import { getLLMAdapter } from "../../adapters";
 import { useSettingsStore } from "../../store/settingsStore";
 import { analyzeInput } from './analyze';
 import { decideStrategy } from './decide';
