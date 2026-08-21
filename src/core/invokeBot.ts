@@ -14,19 +14,18 @@ export async function invokeBot(text: string) {
     const preference = useSettingsStore.getState().llmPreference;
     const activeMode = useModeStore.getState().activeMode;
 
-    // 2. Set UI to Thinking
-    useOverlayStore.getState().setThinking();
+    const requestId = useOverlayStore.getState().requestId;
 
-    // 3. Run Pipeline
+    // 2. Run Pipeline
     try {
         const result = await runPromptPipeline(text, plan, preference, activeMode);
         
-        // 4. Update UI with Result
-        useOverlayStore.getState().setExpanded(result.output.text, result.analysis);
+        // 3. Update UI with Result only if it is still the active request.
+        useOverlayStore.getState().setExpanded(result.output.text, result.analysis, requestId);
         return result;
     } catch (error: any) {
         console.error("invokeBot error:", error);
-        useOverlayStore.getState().setExpanded(`[System Error]\n\nFailed to process request: ${error.message}`);
+        useOverlayStore.getState().setExpanded(`[System Error]\n\nFailed to process request: ${error.message}`, undefined, requestId);
         return null;
     }
 }

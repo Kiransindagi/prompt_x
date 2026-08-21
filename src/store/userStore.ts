@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 interface UserProfile {
     name: string;
@@ -17,12 +18,9 @@ interface UserState {
     setPlan: (plan: 'FREE' | 'PRO') => void;
 }
 
-export const useUserStore = create<UserState>((set) => ({
-    user: {
-        name: 'Kiran',
-        email: 'kiran@email.com',
-    },
-    isAuthenticated: true, // Defaulting to true for demo purposes, as seen in App.tsx
+export const useUserStore = create<UserState>()(persist((set) => ({
+    user: null,
+    isAuthenticated: false,
     plan: 'FREE',
     
     login: (user) => set({ user, isAuthenticated: true }),
@@ -31,4 +29,4 @@ export const useUserStore = create<UserState>((set) => ({
         user: state.user ? { ...state.user, ...profile } : null 
     })),
     setPlan: (plan) => set({ plan }),
-}));
+}), { name: 'prompt-x-profile' }));

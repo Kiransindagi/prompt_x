@@ -7,4 +7,5 @@ export interface OverlayPayload {
     resultText?: string;
     analysis?: AnalysisResult;
     lastActiveMode?: string;
+    action?: 'rewrite' | 'shorten' | 'expand';
 }

@@ -1,5 +1,6 @@
 import { LLMAdapter, LLMGenerateParams } from "./base";
 import { useSettingsStore } from "../store/settingsStore";
+import { LLMRequestError, requestWithTimeout } from './request';
 
 export const ClaudeAdapter: LLMAdapter = {
     name: "claude",
@@ -9,7 +10,7 @@ export const ClaudeAdapter: LLMAdapter = {
         const apiKey = storeState.claudeApiKey || import.meta.env.VITE_CLAUDE_API_KEY;
 
         if (!apiKey) {
-            return `[Mock] Configure Claude API Key in Settings to see real Claude magic!\n\nPolished Prompt: ${userPrompt}`;
+            throw new LLMRequestError('Claude API key is not configured.', 'Claude');
         }
 
         try {
@@ -23,7 +24,7 @@ export const ClaudeAdapter: LLMAdapter = {
 
             // Note: Direct browser calls to Anthropic might fail CORS. 
             // In a production Tauri app, use the Rust HTTP plugin or a proxy.
-            const response = await fetch("https://api.anthropic.com/v1/messages", {
+            const response = await requestWithTimeout("https://api.anthropic.com/v1/messages", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -52,7 +53,7 @@ export const ClaudeAdapter: LLMAdapter = {
 
         } catch (error: any) {
             console.error('[Claude] API Failed:', error);
-            return `[Error] Failed to call Claude: ${error.message}`;
+            throw new LLMRequestError(error.message || 'Claude request failed.', 'Claude');
         }
     }
 };

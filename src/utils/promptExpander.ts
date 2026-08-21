@@ -1,5 +1,6 @@
 import { getLLMAdapter, LLMType } from "../adapters";
 import { getMode } from "../modes";
+import { useSettingsStore } from '../store/settingsStore';
 
 export const PROMPT_ENGINEER_SYSTEM_PROMPT = `You are a world-class, elite prompt engineer. 
 
@@ -26,7 +27,7 @@ export async function generateExpertPrompt(
 ): Promise<{ prompt: string; latency: number }> {
     const startTime = Date.now();
     const adapter = getLLMAdapter(adapterType);
-    const modeInfo = getMode(activeMode);
+    const modeInfo = getMode(activeMode, useSettingsStore.getState().customModes);
 
     const userPrompt = `
 Selected Mode: ${modeInfo.name}

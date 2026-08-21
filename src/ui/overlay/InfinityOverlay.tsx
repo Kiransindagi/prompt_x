@@ -7,9 +7,10 @@ import { invokeBot } from '../../core/invokeBot';
 import { refineResponse } from '../../core/promptBrain/refine';
 
 export function InfinityOverlay() {
-    const { state: overlayState, isVisible, payload, setThinking, setExpanded, hideOverlay } = useOverlayStore();
+    const { state: overlayState, isVisible, payload, setThinking, setExpanded, hideOverlay, updatePayload } = useOverlayStore();
     const { setShowDashboard } = useSettingsStore();
     const [refineInput, setRefineInput] = useState("");
+    const [promptInput, setPromptInput] = useState("");
     const [isMouseDownOnDragHandle, setIsMouseDownOnDragHandle] = useState(false);
 
     // Auto-Sequence: Idle → Thinking (600ms so the ∞ appear animation plays first)
@@ -54,9 +55,10 @@ export function InfinityOverlay() {
     const handleRefine = async () => {
         if (!refineInput.trim()) return;
         setThinking();
+        const refineRequestId = useOverlayStore.getState().requestId;
         try {
             const refined = await refineResponse(payload.resultText || "", refineInput);
-            setExpanded(refined);
+            setExpanded(refined, undefined, refineRequestId);
         } catch (e) {
             console.error("Refine error", e);
         }
@@ -65,6 +67,14 @@ export function InfinityOverlay() {
 
     const handleSymbolClick = () => {
         if (overlayState === 'idle' && payload.originalText) setThinking();
+    };
+
+    const handlePromptSubmit = () => {
+        const text = promptInput.trim();
+        if (!text) return;
+        updatePayload({ originalText: text });
+        setThinking();
+        setPromptInput('');
     };
 
     if (!isVisible) return null;
@@ -117,6 +127,12 @@ export function InfinityOverlay() {
                                 )}
                             </svg>
                         </motion.div>
+                        {overlayState === 'idle' && !payload.originalText && (
+                            <div className="mt-3 w-[360px] rounded-2xl bg-white/95 dark:bg-[#1a1a1a] p-3 shadow-xl border border-gray-200 dark:border-white/10">
+                                <input autoFocus value={promptInput} onChange={(e) => setPromptInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handlePromptSubmit()} placeholder="What would you like to improve?" className="w-full bg-transparent outline-none text-sm text-gray-800 dark:text-white" />
+                                <button onClick={handlePromptSubmit} disabled={!promptInput.trim()} className="mt-2 w-full rounded-xl bg-indigo-600 py-2 text-xs font-bold text-white disabled:opacity-40">Generate</button>
+                            </div>
+                        )}
                     </OverlayShell>
                 )}
 
@@ -203,11 +219,16 @@ export function InfinityOverlay() {
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
                                 </button>
                                 <button
-                                    onClick={async () => { 
+                                    onClick={async () => {
                                         await navigator.clipboard.writeText(payload.resultText || ''); 
-                                        import("@tauri-apps/api/core").then(({ invoke }) => invoke("simulate_paste"));
                                         hideOverlay(); 
                                         setShowDashboard(false);
+                                        if ((window as any).__TAURI_INTERNALS__) {
+                                            const { getCurrentWindow } = await import('@tauri-apps/api/window');
+                                            await getCurrentWindow().hide();
+                                            const { invoke } = await import('@tauri-apps/api/core');
+                                            await invoke('simulate_paste');
+                                        }
                                     }}
                                     className="px-5 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-full text-[13px] font-semibold shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all flex items-center gap-2 tracking-wide"
                                     title="Accept & Paste"

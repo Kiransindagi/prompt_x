@@ -1,5 +1,6 @@
 import { LLMAdapter, LLMGenerateParams } from "./base";
 import { useSettingsStore } from "../store/settingsStore";
+import { LLMRequestError } from './request';
 
 async function getFetch() {
     const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI_INTERNALS__;
@@ -22,7 +23,7 @@ export const OllamaAdapter: LLMAdapter = {
         const baseUrl = storeState.ollamaUrl || "http://localhost:11434";
         const model = storeState.ollamaModel || "llama3";
 
-        const ollamaUrl = baseUrl.endsWith("/api/generate") ? baseUrl : `${baseUrl}/api/generate`;
+        const ollamaUrl = `${baseUrl.replace(/\/(api\/.*)?\/?$/, '')}/api/generate`;
 
         try {
             const controller = new AbortController();
@@ -58,7 +59,7 @@ export const OllamaAdapter: LLMAdapter = {
         } catch (error: any) {
             console.error('[Ollama] API Failed:', error);
             // Warn about CORS or connection
-            return `[Error] Failed to call Ollama LLM (${ollamaUrl}). Ensure Ollama is running and CORS is configured (OLLAMA_ORIGINS="*").\n\nError: ${error.message}`;
+            throw new LLMRequestError(error.message || `Unable to reach Ollama at ${ollamaUrl}.`, 'Ollama');
         }
     }
 };

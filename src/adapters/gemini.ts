@@ -1,5 +1,6 @@
 import { LLMAdapter, LLMGenerateParams } from "./base";
 import { useSettingsStore } from "../store/settingsStore";
+import { LLMRequestError, requestWithTimeout } from './request';
 
 export const GeminiAdapter: LLMAdapter = {
     name: "gemini",
@@ -9,7 +10,7 @@ export const GeminiAdapter: LLMAdapter = {
         const apiKey = storeState.geminiApiKey || import.meta.env.VITE_GEMINI_API_KEY;
 
         if (!apiKey) {
-            return `[Mock] Configure Gemini API Key in Settings to see real Gemini magic!\n\nExpanded Prompt: ${userPrompt}`;
+            throw new LLMRequestError('Gemini API key is not configured.', 'Gemini');
         }
 
         // 1. Normalize model string to ensure it is valid for Gemini API
@@ -47,12 +48,13 @@ export const GeminiAdapter: LLMAdapter = {
         for (const currentModel of candidateModels) {
             try {
                 console.log(`[Gemini] Attempting generation with model: ${currentModel}`);
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${apiKey}`;
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent`;
 
-                const response = await fetch(url, {
+                const response = await requestWithTimeout(url, {
                     method: "POST",
                     headers: {
-                        "Content-Type": "application/json"
+                        "Content-Type": "application/json",
+                        "x-goog-api-key": apiKey
                     },
                     body: JSON.stringify({
                         contents: [
@@ -110,6 +112,6 @@ export const GeminiAdapter: LLMAdapter = {
             }
         }
 
-        return `[Error] Failed to call Gemini: ${lastError?.message || "All fallback models exhausted"}`;
+        throw new LLMRequestError(lastError?.message || 'All Gemini model fallbacks failed.', 'Gemini');
     }
 };

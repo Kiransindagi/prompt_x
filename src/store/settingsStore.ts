@@ -1,8 +1,17 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 export type LLMPreference = 'AUTO' | 'OPENAI' | 'OPENAI_MINI' | 'CLAUDE' | 'CLAUDE_OPUS' | 'GEMINI' | 'GEMINI_FLASH' | 'OLLAMA' | string;
 export type FontSize = 'SMALL' | 'MEDIUM' | 'LARGE';
 export type Theme = 'LIGHT' | 'DARK' | 'SYSTEM';
+
+export interface CustomMode {
+    name: string;
+    tone: string;
+    verbosity: string;
+    temperature: number;
+    systemPrompt: string;
+}
 
 interface SettingsState {
     llmPreference: LLMPreference;
@@ -39,6 +48,7 @@ interface SettingsState {
     geminiApiKey: string;
     openaiApiKey: string;
     claudeApiKey: string;
+    customModes: CustomMode[];
     
     setLLMPreference: (pref: LLMPreference) => void;
     setTheme: (theme: Theme) => void;
@@ -66,9 +76,10 @@ interface SettingsState {
     setGeminiApiKey: (val: string) => void;
     setOpenaiApiKey: (val: string) => void;
     setClaudeApiKey: (val: string) => void;
+    addCustomMode: (mode: CustomMode) => void;
 }
 
-export const useSettingsStore = create<SettingsState>((set) => ({
+export const useSettingsStore = create<SettingsState>()(persist((set) => ({
     llmPreference: import.meta.env.VITE_GEMINI_API_KEY ? 'GEMINI' : 'OLLAMA',
     theme: 'LIGHT',
     fontSize: 'MEDIUM',
@@ -94,6 +105,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     geminiApiKey: '',
     openaiApiKey: '',
     claudeApiKey: '',
+    customModes: [],
     stats: {
         tokensSaved: 14200,
         costSaved: 2.45,
@@ -131,4 +143,14 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     setGeminiApiKey: (geminiApiKey) => set({ geminiApiKey }),
     setOpenaiApiKey: (openaiApiKey) => set({ openaiApiKey }),
     setClaudeApiKey: (claudeApiKey) => set({ claudeApiKey }),
+    addCustomMode: (mode) => set((state) => ({
+        customModes: [...state.customModes.filter((item) => item.name.toLowerCase() !== mode.name.toLowerCase()), mode]
+    })),
+}), {
+    name: 'prompt-x-settings',
+    // API keys intentionally remain session-only until a native OS keychain is added.
+    partialize: (state) => {
+        const { geminiApiKey, openaiApiKey, claudeApiKey, ...persisted } = state;
+        return persisted;
+    },
 }));

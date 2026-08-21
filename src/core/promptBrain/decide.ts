@@ -15,6 +15,7 @@ export interface Strategy {
 }
 
 import { LLMPreference } from "../../store/settingsStore";
+import { useSettingsStore } from '../../store/settingsStore';
 
 export type UserPlan = 'FREE' | 'PRO';
 
@@ -65,7 +66,7 @@ export function decideStrategy(
     // We can add more specific schemas here map to intent
 
     // 3. Apply Mode Settings & Syllabus Rules
-    const mode = getMode(activeModeName);
+    const mode = getMode(activeModeName, useSettingsStore.getState().customModes);
 
     // Level 4: Mode Profile is applied via 'mode' object, but we wrap it in Master Prompt
     // We append the specific mode instruction to the Master Prompt
@@ -83,13 +84,14 @@ export function decideStrategy(
 }
 
 function resolveAutoLLM(_analysis: AnalysisResult): LLMType {
-    if (import.meta.env.VITE_GEMINI_API_KEY) {
+    const settings = useSettingsStore.getState();
+    if (settings.geminiApiKey || import.meta.env.VITE_GEMINI_API_KEY) {
         return 'gemini';
     }
-    if (import.meta.env.VITE_OPENAI_API_KEY) {
+    if (settings.openaiApiKey || import.meta.env.VITE_OPENAI_API_KEY) {
         return 'openai';
     }
-    if (import.meta.env.VITE_CLAUDE_API_KEY) {
+    if (settings.claudeApiKey || import.meta.env.VITE_CLAUDE_API_KEY) {
         return 'claude';
     }
     return 'ollama';

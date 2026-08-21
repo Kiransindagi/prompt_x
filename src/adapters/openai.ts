@@ -1,5 +1,6 @@
 import { LLMAdapter, LLMGenerateParams } from "./base";
 import { useSettingsStore } from "../store/settingsStore";
+import { LLMRequestError, requestWithTimeout } from './request';
 
 export const OpenAIAdapter: LLMAdapter = {
     name: "openai",
@@ -9,12 +10,7 @@ export const OpenAIAdapter: LLMAdapter = {
         const apiKey = storeState.openaiApiKey || import.meta.env.VITE_OPENAI_API_KEY;
 
         if (!apiKey) {
-            console.warn('[OpenAI] No API Key found. Returning mock.');
-            // Fallback Mock (Keep existing for demo purposes if no key)
-            if (userPrompt.toLowerCase().includes('login page')) {
-                return `Design a secure login page with the following constraints:\n\n1. Tech Stack\n- React (TypeScript)\n- Tailwind CSS\n- Controlled form inputs\n\n2. Security Requirements\n- Client-side validation\n- Password masking\n- CSRF-safe submission pattern\n\n3. Architecture\n- Separate UI and auth logic\n- Typed API contract\n- Error boundary handling\n\n4. Deliverables\n- Component structure\n- Example code snippet\n- Explanation of decisions`;
-            }
-            return `[Mock] Configure OpenAI API Key in Settings to see real AI magic!\n\nRe-engineered Prompt: ${userPrompt}`;
+            throw new LLMRequestError('OpenAI API key is not configured.', 'OpenAI');
         }
 
         try {
@@ -26,7 +22,7 @@ export const OpenAIAdapter: LLMAdapter = {
                 }
             }
 
-            const response = await fetch("https://api.openai.com/v1/chat/completions", {
+            const response = await requestWithTimeout("https://api.openai.com/v1/chat/completions", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -51,7 +47,7 @@ export const OpenAIAdapter: LLMAdapter = {
             return data.choices[0].message.content || "";
         } catch (error: any) {
             console.error('[OpenAI] API Failed:', error);
-            return `[Error] Failed to call OpenAI: ${error.message}`;
+            throw new LLMRequestError(error.message || 'OpenAI request failed.', 'OpenAI');
         }
     }
 };
