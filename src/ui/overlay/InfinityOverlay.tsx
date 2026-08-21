@@ -8,20 +8,20 @@ import { refineResponse } from '../../core/promptBrain/refine';
 
 export function InfinityOverlay() {
     const { state: overlayState, isVisible, payload, setThinking, setExpanded, hideOverlay, updatePayload } = useOverlayStore();
-    const { setShowDashboard } = useSettingsStore();
+    const { setShowDashboard, autoEnhance, askBeforeRewrite, soundFeedback } = useSettingsStore();
     const [refineInput, setRefineInput] = useState("");
     const [promptInput, setPromptInput] = useState("");
     const [isMouseDownOnDragHandle, setIsMouseDownOnDragHandle] = useState(false);
 
     // Auto-Sequence: Idle → Thinking (600ms so the ∞ appear animation plays first)
     useEffect(() => {
-        if (overlayState === 'idle' && payload.originalText) {
+        if (overlayState === 'idle' && payload.originalText && autoEnhance && !askBeforeRewrite) {
             // If user starts a new task, ensure the dashboard is tucked away
             setShowDashboard(false);
             const timer = setTimeout(() => setThinking(), 600);
             return () => clearTimeout(timer);
         }
-    }, [overlayState, payload.originalText, setThinking, setShowDashboard]);
+    }, [overlayState, payload.originalText, autoEnhance, askBeforeRewrite, setThinking, setShowDashboard]);
 
     // Handle clicking outside to dismiss
     useEffect(() => {
@@ -51,6 +51,23 @@ export function InfinityOverlay() {
             invokeBot(payload.originalText, payload.action);
         }
     }, [overlayState, payload.originalText]);
+
+    useEffect(() => {
+        if (overlayState !== 'expanded' || !soundFeedback) return;
+        try {
+            const context = new AudioContext();
+            const oscillator = context.createOscillator();
+            const gain = context.createGain();
+            oscillator.frequency.value = 660;
+            gain.gain.setValueAtTime(0.04, context.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.08);
+            oscillator.connect(gain).connect(context.destination);
+            oscillator.start();
+            oscillator.stop(context.currentTime + 0.08);
+        } catch {
+            // Audio is optional and may be disabled by the host platform.
+        }
+    }, [overlayState, soundFeedback]);
 
     const handleRefine = async () => {
         if (!refineInput.trim()) return;
