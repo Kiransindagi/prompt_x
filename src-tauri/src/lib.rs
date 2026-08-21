@@ -1,9 +1,45 @@
 use tauri::Manager;
 use tauri::Emitter;
 use arboard::Clipboard;
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState, Code, Modifiers};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState, Shortcut};
+use std::{collections::HashMap, str::FromStr, sync::Mutex};
  
 use enigo::{Enigo, Key, Keyboard, Settings, Direction};
+
+struct ShortcutActions(Mutex<HashMap<u32, String>>);
+
+fn normalize_shortcut(value: &str) -> String {
+    value.replace(' ', "").replace("Command", "SUPER").replace("Cmd", "SUPER").replace("Control", "CTRL")
+}
+
+#[tauri::command]
+fn configure_shortcuts(
+    app: tauri::AppHandle,
+    enabled: bool,
+    rewrite: String,
+    shorten: String,
+    expand: String,
+) -> Result<(), String> {
+    let definitions = [(rewrite, "rewrite"), (shorten, "shorten"), (expand, "expand")];
+    let mut shortcuts = Vec::new();
+    for (value, action) in definitions {
+        let shortcut = Shortcut::from_str(&normalize_shortcut(&value))
+            .map_err(|error| format!("Invalid {action} shortcut: {error}"))?;
+        shortcuts.push((shortcut, action.to_string()));
+    }
+    let manager = app.global_shortcut();
+    manager.unregister_all().map_err(|error| error.to_string())?;
+    let action_state = app.state::<ShortcutActions>();
+    let mut actions = action_state.0.lock().map_err(|_| "Shortcut state is unavailable")?;
+    actions.clear();
+    if enabled {
+        for (shortcut, action) in shortcuts {
+            manager.register(shortcut).map_err(|error| error.to_string())?;
+            actions.insert(shortcut.id(), action);
+        }
+    }
+    Ok(())
+}
  
  #[tauri::command]
  fn simulate_paste() {
@@ -102,15 +138,7 @@ pub fn run() {
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app: &tauri::AppHandle, shortcut, event| {
                     if event.state == ShortcutState::Pressed {
-                        let action = if shortcut.matches(Modifiers::CONTROL, Code::KeyP) {
-                            Some("rewrite")
-                        } else if shortcut.matches(Modifiers::CONTROL, Code::KeyS) {
-                            Some("shorten")
-                        } else if shortcut.matches(Modifiers::CONTROL, Code::KeyE) {
-                            Some("expand")
-                        } else {
-                            None
-                        };
+                        let action = app.state::<ShortcutActions>().0.lock().ok().and_then(|actions| actions.get(&shortcut.id()).cloned());
                         if let Some(action) = action {
                             if let Some(window) = app.get_webview_window("main") {
                                 // We emit the event FIRST. The frontend will simulate copy,
@@ -123,13 +151,9 @@ pub fn run() {
                 })
                 .build(),
         )
+        .manage(ShortcutActions(Mutex::new(HashMap::new())))
         .setup(|app| {
-            // Register hotkey and ignore error if it's already registered (prevents panic)
-            for shortcut in ["Ctrl+P", "Ctrl+S", "Ctrl+E"] {
-                if let Err(error) = app.global_shortcut().register(shortcut) {
-                    eprintln!("Unable to register {shortcut}: {error}");
-                }
-            }
+            configure_shortcuts(app.handle().clone(), true, "Ctrl+P".into(), "Ctrl+S".into(), "Ctrl+E".into())?;
 
             // Start by ignoring mouse events so background apps work
             if let Some(window) = app.get_webview_window("main") {
@@ -137,7 +161,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![greet, read_clipboard, debug_log, get_mouse_pos, set_ignore_mouse, simulate_paste, simulate_copy])
+        .invoke_handler(tauri::generate_handler![greet, read_clipboard, debug_log, get_mouse_pos, set_ignore_mouse, simulate_paste, simulate_copy, configure_shortcuts])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

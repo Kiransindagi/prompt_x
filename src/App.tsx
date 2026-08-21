@@ -172,6 +172,16 @@ function App() {
     root.style.fontSize = fontSize === 'SMALL' ? '14px' : fontSize === 'LARGE' ? '18px' : '16px';
   }, [theme, fontSize]);
 
+  useEffect(() => {
+    if (!(window as any).__TAURI_INTERNALS__) return;
+    import('@tauri-apps/api/core').then(({ invoke }) => invoke('configure_shortcuts', {
+      enabled: enableGlobalShortcuts,
+      rewrite: rewriteShortcut,
+      shorten: shortenShortcut,
+      expand: expandShortcut,
+    })).catch((error) => console.error('Unable to configure shortcuts:', error));
+  }, [enableGlobalShortcuts, rewriteShortcut, shortenShortcut, expandShortcut]);
+
 
   useEffect(() => {
 
