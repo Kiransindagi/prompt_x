@@ -8,7 +8,7 @@ import { refineResponse } from '../../core/promptBrain/refine';
 
 export function InfinityOverlay() {
     const { state: overlayState, isVisible, payload, setThinking, setExpanded, hideOverlay, updatePayload } = useOverlayStore();
-    const { setShowDashboard, autoEnhance, askBeforeRewrite, soundFeedback } = useSettingsStore();
+    const { setShowDashboard, autoEnhance, askBeforeRewrite, soundFeedback, keepOriginalText } = useSettingsStore();
     const [refineInput, setRefineInput] = useState("");
     const [promptInput, setPromptInput] = useState("");
     const [isMouseDownOnDragHandle, setIsMouseDownOnDragHandle] = useState(false);
@@ -240,7 +240,7 @@ export function InfinityOverlay() {
                                         await navigator.clipboard.writeText(payload.resultText || ''); 
                                         hideOverlay(); 
                                         setShowDashboard(false);
-                                        if ((window as any).__TAURI_INTERNALS__) {
+                                        if ((window as any).__TAURI_INTERNALS__ && !keepOriginalText) {
                                             const { getCurrentWindow } = await import('@tauri-apps/api/window');
                                             await getCurrentWindow().hide();
                                             const { invoke } = await import('@tauri-apps/api/core');
@@ -248,10 +248,10 @@ export function InfinityOverlay() {
                                         }
                                     }}
                                     className="px-5 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-full text-[13px] font-semibold shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all flex items-center gap-2 tracking-wide"
-                                    title="Accept & Paste"
+                                    title={keepOriginalText ? "Copy suggestion and keep original" : "Accept & Paste"}
                                 >
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                                    Accept
+                                    {keepOriginalText ? 'Copy' : 'Accept'}
                                 </button>
                                 </div>
                             </div>
