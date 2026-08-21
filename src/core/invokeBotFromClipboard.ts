@@ -1,4 +1,5 @@
 import { useOverlayStore } from "../store/overlayStore";
+import { useSettingsStore } from '../store/settingsStore';
 
 export async function registerGlobalTrigger() {
     if (!(window as any).__TAURI_INTERNALS__) return;
@@ -9,7 +10,9 @@ export async function registerGlobalTrigger() {
 
     console.log("[GlobalTrigger] Registering listener...");
 
-    listen("trigger-overlay", async () => {
+    const unlisten = await listen<string>("trigger-overlay", async (event) => {
+        if (!useSettingsStore.getState().enableGlobalShortcuts) return;
+        const action = event.payload === 'shorten' || event.payload === 'expand' ? event.payload : 'rewrite';
         console.log("[GlobalTrigger] Ctrl+P detected via Rust!");
 
         // 1. Simulate Ctrl+C to copy selected text
@@ -55,12 +58,13 @@ export async function registerGlobalTrigger() {
                 console.error("[GlobalTrigger] Failed to get global mouse pos:", e);
             }
 
-            useOverlayStore.getState().showOverlay({ x, y }, text);
+            useOverlayStore.getState().showOverlay({ x, y }, text, action);
         } else {
             // Just show overlay if empty (optional, but good UX)
             const x = window.innerWidth / 2;
             const y = window.innerHeight / 2;
-            useOverlayStore.getState().showOverlay({ x, y }, "");
+            useOverlayStore.getState().showOverlay({ x, y }, "", action);
         }
     });
+    return unlisten;
 }

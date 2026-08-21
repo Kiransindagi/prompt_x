@@ -49,8 +49,8 @@ Command your text anywhere across your operating system:
 - **`Ctrl + E`**: Expand ideas with rich detail and relevant examples.
 *Fully compatible with all browsers, IDEs, Slack, MS Word, and more.*
 
-### 🛡️ Privacy First Protocol
-Your data remains yours. Prompt X leverages end-to-end encrypted transit and zero-knowledge processing. We strictly adhere to a no-logging policy for keystrokes and ensure your data is never used for model training by default.
+### 🛡️ Privacy Controls
+Prompt X reads text only after you invoke a shortcut. Provider API keys are session-only, and prompt history is stored locally only when you enable it. Cloud-model requests are governed by the selected provider's policy; use Ollama for local processing.
 
 ---
 

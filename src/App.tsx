@@ -9,6 +9,7 @@ import { useSettingsStore } from "./store/settingsStore";
 import { useModeStore } from "./store/modeStore";
 import { generateExpertPrompt } from "./utils/promptExpander";
 import { getLLMAdapter } from "./adapters";
+import { useHistoryStore } from './store/historyStore';
 
 function App() {
   const { user, isAuthenticated, plan, logout, setPlan, updateProfile, login } = useUserStore();
@@ -38,7 +39,7 @@ function App() {
     geminiApiKey, setGeminiApiKey,
     openaiApiKey, setOpenaiApiKey,
     claudeApiKey, setClaudeApiKey,
-    stats
+    stats, addCustomMode
   } = useSettingsStore();
   const { activeMode, setActiveMode } = useModeStore();
   
@@ -61,6 +62,10 @@ function App() {
   const [isTestingPrompt, setIsTestingPrompt] = useState(false);
   const [testPromptLatency, setTestPromptLatency] = useState<number | null>(null);
   const [isCreatingMode, setIsCreatingMode] = useState(false);
+  const [customModeName, setCustomModeName] = useState("");
+  const [customModeInstructions, setCustomModeInstructions] = useState("");
+  const [customModeTone, setCustomModeTone] = useState("Professional");
+  const [customModeStyle, setCustomModeStyle] = useState("Concise");
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
@@ -202,10 +207,11 @@ function App() {
   ];
 
   // Recent Activity Data (Shared)
-  const activityItems = [
-    { mode: "Marketing", time: "10:42 PM", original: "write ad for shoes", ai: "Create a high-converting advertisement for a new line of running shoes focusing on comfort...", color: "blue", label: "Improved · +42% clarity", icon: "arrow" },
-    { mode: "Developer", time: "9:10 PM", original: "make login page", ai: "Design a secure and responsive login page using React and Tailwind CSS...", color: "purple", label: "Optimized · Concise", icon: "zap" }
-  ];
+  const activityItems = useHistoryStore((state) => state.items).map((item) => ({
+    ...item,
+    time: new Date(item.createdAt).toLocaleString(),
+    color: 'blue', label: `Generated with ${item.model}`, icon: 'zap'
+  }));
 
   // Modal State
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
@@ -969,10 +975,7 @@ function App() {
                               placeholder={import.meta.env.VITE_GEMINI_API_KEY ? "Using .env key..." : "Paste Gemini API key here..."}
                               className="w-full px-3 py-2 text-xs font-mono border border-gray-200 dark:border-white/10 rounded-xl bg-gray-50 dark:bg-[#121218] text-gray-950 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                             />
-                            <div className="flex items-center gap-1.5 mt-1.5">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                              <span className="text-[10px] text-gray-400 dark:text-gray-500">Saved securely in local storage. Not sent to any server.</span>
-                            </div>
+                            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5">Kept only for this app session and sent only to the selected provider.</p>
                           </div>
                         )}
 
@@ -988,7 +991,7 @@ function App() {
                             />
                             <div className="flex items-center gap-1.5 mt-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                              <span className="text-[10px] text-gray-400 dark:text-gray-500">Saved securely in local storage.</span>
+                              <span className="text-[10px] text-gray-400 dark:text-gray-500">Kept only for this app session.</span>
                             </div>
                           </div>
                         )}
@@ -1005,7 +1008,7 @@ function App() {
                             />
                             <div className="flex items-center gap-1.5 mt-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                              <span className="text-[10px] text-gray-400 dark:text-gray-500">Saved securely in local storage.</span>
+                              <span className="text-[10px] text-gray-400 dark:text-gray-500">Kept only for this app session.</span>
                             </div>
                           </div>
                         )}
@@ -2051,16 +2054,16 @@ function App() {
                               <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 space-y-4 animate-in zoom-in-95 duration-200">
                                   <div>
                                       <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Mode Name</label>
-                                      <input type="text" placeholder="e.g. My Brand Voice" className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-indigo-500" />
+                                      <input value={customModeName} onChange={(e) => setCustomModeName(e.target.value)} type="text" placeholder="e.g. My Brand Voice" className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-indigo-500" />
                                   </div>
                                   <div>
                                       <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">System Instructions</label>
-                                      <textarea placeholder="Tell the AI how to behave..." className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-indigo-500 h-24 resize-none" />
+                                      <textarea value={customModeInstructions} onChange={(e) => setCustomModeInstructions(e.target.value)} placeholder="Tell the AI how to behave..." className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-indigo-500 h-24 resize-none" />
                                   </div>
                                   <div className="grid grid-cols-2 gap-4">
                                       <div>
                                           <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Tone</label>
-                                          <select className="w-full text-sm border border-gray-200 rounded-lg px-2 py-2 outline-none">
+                                          <select value={customModeTone} onChange={(e) => setCustomModeTone(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-2 py-2 outline-none">
                                               <option>Professional</option>
                                               <option>Casual</option>
                                               <option>Humorous</option>
@@ -2069,7 +2072,7 @@ function App() {
                                       </div>
                                       <div>
                                           <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Output Style</label>
-                                          <select className="w-full text-sm border border-gray-200 rounded-lg px-2 py-2 outline-none">
+                                          <select value={customModeStyle} onChange={(e) => setCustomModeStyle(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-2 py-2 outline-none">
                                               <option>Concise</option>
                                               <option>Detailed</option>
                                               <option>Bullet Points</option>
@@ -2077,7 +2080,17 @@ function App() {
                                       </div>
                                   </div>
                                   <button 
-                                    onClick={() => setIsCreatingMode(false)}
+                                    onClick={() => {
+                                      const name = customModeName.trim();
+                                      const systemPrompt = customModeInstructions.trim();
+                                      if (!name || !systemPrompt) return;
+                                      addCustomMode({ name, systemPrompt, tone: customModeTone, verbosity: customModeStyle, temperature: customModeTone === 'Humorous' ? 0.8 : 0.4 });
+                                      setActiveMode(name);
+                                      setCustomModeName('');
+                                      setCustomModeInstructions('');
+                                      setIsCreatingMode(false);
+                                    }}
+                                    disabled={!customModeName.trim() || !customModeInstructions.trim()}
                                     className="w-full py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-colors"
                                   >
                                     Save Custom Mode

@@ -48,7 +48,7 @@ export function InfinityOverlay() {
     // Thinking → call the brain → Expanded
     useEffect(() => {
         if (overlayState === 'thinking' && payload.originalText) {
-            invokeBot(payload.originalText);
+            invokeBot(payload.originalText, payload.action);
         }
     }, [overlayState, payload.originalText]);
 
@@ -72,7 +72,7 @@ export function InfinityOverlay() {
     const handlePromptSubmit = () => {
         const text = promptInput.trim();
         if (!text) return;
-        updatePayload({ originalText: text });
+        updatePayload({ originalText: text, action: 'rewrite' });
         setThinking();
         setPromptInput('');
     };

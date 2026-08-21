@@ -102,12 +102,21 @@ pub fn run() {
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app: &tauri::AppHandle, shortcut, event| {
                     if event.state == ShortcutState::Pressed {
-                        if shortcut.matches(Modifiers::CONTROL, Code::KeyP) {
+                        let action = if shortcut.matches(Modifiers::CONTROL, Code::KeyP) {
+                            Some("rewrite")
+                        } else if shortcut.matches(Modifiers::CONTROL, Code::KeyS) {
+                            Some("shorten")
+                        } else if shortcut.matches(Modifiers::CONTROL, Code::KeyE) {
+                            Some("expand")
+                        } else {
+                            None
+                        };
+                        if let Some(action) = action {
                             if let Some(window) = app.get_webview_window("main") {
                                 // We emit the event FIRST. The frontend will simulate copy,
                                 // read the clipboard, and THEN steal focus using window.setFocus().
                                 // This ensures the background app (like VS Code) actually gets the Ctrl+C!
-                                window.emit("trigger-overlay", {}).ok();
+                                window.emit("trigger-overlay", action).ok();
                             }
                         }
                     }
@@ -116,7 +125,11 @@ pub fn run() {
         )
         .setup(|app| {
             // Register hotkey and ignore error if it's already registered (prevents panic)
-            let _ = app.global_shortcut().register("Ctrl+P");
+            for shortcut in ["Ctrl+P", "Ctrl+S", "Ctrl+E"] {
+                if let Err(error) = app.global_shortcut().register(shortcut) {
+                    eprintln!("Unable to register {shortcut}: {error}");
+                }
+            }
 
             // Start by ignoring mouse events so background apps work
             if let Some(window) = app.get_webview_window("main") {
