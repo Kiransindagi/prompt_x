@@ -470,18 +470,29 @@ function App() {
 
   // Handle click-through toggle and Dynamic Window Positioning
   useEffect(() => {
-    if ((window as any).__TAURI_INTERNALS__) {
-      import("@tauri-apps/api/core").then(({ invoke }) => {
-        invoke("set_ignore_mouse", { ignore: !isOverlayVisible && !isDashboardActive }).catch(console.error);
-      });
+    if (!(window as any).__TAURI_INTERNALS__) return;
+    let cancelled = false;
 
-      import("@tauri-apps/api/window").then(async ({ getCurrentWindow, LogicalSize, PhysicalPosition }) => {
+    const updateWindow = async () => {
+      try {
+        const [{ invoke }, { getCurrentWindow, LogicalSize, PhysicalPosition }] = await Promise.all([
+          import('@tauri-apps/api/core'),
+          import('@tauri-apps/api/window'),
+        ]);
+        if (cancelled) return;
         const win = getCurrentWindow() as any;
+        // Never leave an interactive dashboard or overlay click-through.
+        await invoke('set_ignore_mouse', { ignore: !isOverlayVisible && !isDashboardActive });
+        if (cancelled) return;
         if (isDashboardActive) {
-            win.setSize(new LogicalSize(1200, 800));
-            win.center();
+            await win.setSize(new LogicalSize(1200, 800));
+            if (cancelled) return;
+            await win.center();
+            if (cancelled) return;
+            await win.show();
         } else if (isOverlayVisible) {
             await win.setSize(new LogicalSize(700, 800));
+            if (cancelled) return;
             const dpr = window.devicePixelRatio || 1;
             const winWidth = Math.round(700 * dpr);
             const winHeight = Math.round(800 * dpr);
@@ -519,11 +530,25 @@ function App() {
                 console.error("Collision detection error", err);
             }
 
-            win.setPosition(new PhysicalPosition(winX, winY));
+            if (!cancelled) await win.setPosition(new PhysicalPosition(winX, winY));
         }
-      });
-    }
+      } catch (error) {
+        console.error('Unable to update Prompt X window state:', error);
+      }
+    };
+    void updateWindow();
+    return () => { cancelled = true; };
   }, [isOverlayVisible, isDashboardActive, anchorPosition]);
+
+  const startWindowDrag = async (event: any) => {
+    if (!isTauri || event.button !== 0 || event.target.closest('button, input, textarea, select, a')) return;
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      await getCurrentWindow().startDragging();
+    } catch (error) {
+      console.error('Unable to start window drag:', error);
+    }
+  };
 
   return (
     <div className={`flex flex-col h-screen w-full relative overflow-hidden transition-all duration-300 ${isTauri ? 'bg-transparent shadow-none pointer-events-none' : 'bg-white dark:bg-black pointer-events-auto'}`}>
@@ -539,7 +564,7 @@ function App() {
       {isDashboardActive && (
         <>
           {/* Top Bar (Custom Window Frame) */}
-          <header className="flex-shrink-0 h-[44px] bg-[#F3F3F3] dark:bg-[#1a1a1a] border-b border-gray-200 dark:border-white/5 relative z-50 sticky top-0">
+          <header onMouseDown={startWindowDrag} className="flex-shrink-0 h-[44px] bg-[#F3F3F3] dark:bg-[#1a1a1a] border-b border-gray-200 dark:border-white/5 relative z-50 sticky top-0 cursor-grab active:cursor-grabbing">
             {/* Drag Handle Layer - Absolute spanning full width/height */}
             <div data-tauri-drag-region className="absolute inset-0 z-0" />
 
