@@ -6,6 +6,47 @@ use std::{collections::HashMap, str::FromStr, sync::Mutex};
  
 use enigo::{Enigo, Key, Keyboard, Settings, Direction};
 
+fn ollama_base_url(value: &str) -> String {
+    value.trim().trim_end_matches('/').split("/api/").next().unwrap_or(value).to_string()
+}
+
+#[tauri::command]
+async fn ollama_tags(base_url: String) -> Result<Vec<String>, String> {
+    let url = format!("{}/api/tags", ollama_base_url(&base_url));
+    let response = reqwest::Client::new()
+        .get(&url)
+        .timeout(std::time::Duration::from_secs(10))
+        .send().await.map_err(|error| format!("Cannot reach Ollama at {url}: {error}"))?;
+    if !response.status().is_success() {
+        return Err(format!("Ollama returned HTTP {} from {url}", response.status()));
+    }
+    let body: serde_json::Value = response.json().await.map_err(|error| format!("Invalid Ollama response: {error}"))?;
+    Ok(body["models"].as_array().into_iter().flatten()
+        .filter_map(|model| model["name"].as_str().map(str::to_owned)).collect())
+}
+
+#[tauri::command]
+async fn ollama_generate(base_url: String, model: String, prompt: String, system: String, temperature: f64) -> Result<String, String> {
+    let url = format!("{}/api/generate", ollama_base_url(&base_url));
+    let response = reqwest::Client::new()
+        .post(&url)
+        .timeout(std::time::Duration::from_secs(60))
+        .json(&serde_json::json!({
+            "model": model,
+            "prompt": prompt,
+            "system": system,
+            "stream": false,
+            "options": { "temperature": temperature }
+        }))
+        .send().await.map_err(|error| format!("Cannot reach Ollama at {url}: {error}"))?;
+    if !response.status().is_success() {
+        return Err(format!("Ollama returned HTTP {}. Verify that model is installed.", response.status()));
+    }
+    let body: serde_json::Value = response.json().await.map_err(|error| format!("Invalid Ollama response: {error}"))?;
+    body["response"].as_str().map(str::to_owned).filter(|text| !text.is_empty())
+        .ok_or_else(|| "Ollama returned an empty response.".to_string())
+}
+
 struct ShortcutActions(Mutex<HashMap<u32, String>>);
 
 fn normalize_shortcut(value: &str) -> String {
@@ -161,7 +202,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![greet, read_clipboard, debug_log, get_mouse_pos, set_ignore_mouse, simulate_paste, simulate_copy, configure_shortcuts])
+        .invoke_handler(tauri::generate_handler![greet, read_clipboard, debug_log, get_mouse_pos, set_ignore_mouse, simulate_paste, simulate_copy, configure_shortcuts, ollama_tags, ollama_generate])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

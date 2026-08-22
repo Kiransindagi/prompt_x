@@ -89,14 +89,18 @@ function App() {
     setOllamaStatusError("");
     try {
       const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI_INTERNALS__;
-      let activeFetch = fetch;
       if (isTauri) {
-        const { fetch: tauriFetch } = await import("@tauri-apps/plugin-http");
-        activeFetch = tauriFetch;
+        const { invoke } = await import('@tauri-apps/api/core');
+        const models = await invoke<string[]>('ollama_tags', { baseUrl: ollamaUrl });
+        if (models.length === 0) throw new Error("Ollama is running but no local models are installed. Run: ollama pull llama3.2");
+        setOllamaModels(models);
+        setOllamaModel(models[0]);
+        setLLMPreference('OLLAMA');
+        setOllamaStatus('connected');
+        return;
       }
-      
       const cleanUrl = ollamaUrl.endsWith("/") ? ollamaUrl.slice(0, -1) : ollamaUrl;
-      const response = await activeFetch(`${cleanUrl}/api/tags`);
+      const response = await fetch(`${cleanUrl}/api/tags`);
       if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
       const data = await response.json();
       if (data.models && Array.isArray(data.models)) {
@@ -127,15 +131,18 @@ function App() {
     const startTime = Date.now();
     try {
       const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI_INTERNALS__;
-      let activeFetch = fetch;
       if (isTauri) {
-        const { fetch: tauriFetch } = await import("@tauri-apps/plugin-http");
-        activeFetch = tauriFetch;
+        if (ollamaStatus !== 'connected') throw new Error('Connect to Ollama and choose a model before testing.');
+        const { invoke } = await import('@tauri-apps/api/core');
+        const response = await invoke<string>('ollama_generate', { baseUrl: ollamaUrl, model: ollamaModel, prompt: testPrompt, system: '', temperature: 0.7 });
+        setTestResponse(response);
+        setTestLatency(Date.now() - startTime);
+        return;
       }
 
       if (ollamaStatus !== 'connected') throw new Error('Connect to Ollama and choose a model before testing.');
       const cleanUrl = ollamaUrl.endsWith("/") ? ollamaUrl.slice(0, -1) : ollamaUrl;
-      const response = await activeFetch(`${cleanUrl}/api/generate`, {
+      const response = await fetch(`${cleanUrl}/api/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1818,7 +1825,7 @@ function App() {
                                       <span className="font-bold">Connection Failed</span>
                                     </div>
                                     <p className="pl-4 leading-normal">{ollamaStatusError}</p>
-                                    <p className="pl-4 text-[10px] text-gray-400">Note: Ensure Ollama is running and CORS is configured (e.g., set OLLAMA_ORIGINS="*" as environment variable before running Ollama).</p>
+                                    <p className="pl-4 text-[10px] text-gray-400">Prompt X connects through its native backend. Ensure the Ollama service is running and this URL is correct.</p>
                                   </div>
                                 )}
 

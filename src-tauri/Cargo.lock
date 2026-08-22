@@ -2948,6 +2948,7 @@ dependencies = [
  "arboard",
  "enigo",
  "mouse_position",
+ "reqwest 0.12.28",
  "serde",
  "serde_json",
  "tauri",

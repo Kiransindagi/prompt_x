@@ -2,19 +2,6 @@ import { LLMAdapter, LLMGenerateParams } from "./base";
 import { useSettingsStore } from "../store/settingsStore";
 import { LLMRequestError } from './request';
 
-async function getFetch() {
-    const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI_INTERNALS__;
-    if (isTauri) {
-        try {
-            const { fetch: tauriFetch } = await import("@tauri-apps/plugin-http");
-            return tauriFetch;
-        } catch (e) {
-            console.warn('[Ollama] Failed to import Tauri HTTP plugin, using global fetch:', e);
-        }
-    }
-    return fetch;
-}
-
 export const OllamaAdapter: LLMAdapter = {
     name: "ollama",
 
@@ -26,10 +13,13 @@ export const OllamaAdapter: LLMAdapter = {
         const ollamaUrl = `${baseUrl.replace(/\/$/, '').replace(/\/api\/.*$/, '')}/api/generate`;
 
         try {
-            const activeFetch = await getFetch();
+            if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+                const { invoke } = await import('@tauri-apps/api/core');
+                return await invoke<string>('ollama_generate', { baseUrl, model, prompt: userPrompt, system: systemPrompt, temperature });
+            }
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 60_000);
-            const response = await activeFetch(ollamaUrl, {
+            const response = await fetch(ollamaUrl, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
