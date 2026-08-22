@@ -1,5 +1,5 @@
 import { analyzeInput, AnalysisResult } from "./analyze";
-import { decideStrategy, Strategy, UserPlan } from "./decide";
+import { decideStrategy, Strategy } from "./decide";
 import { generateRewrite, GenerationResult } from "./generate";
 import { LLMPreference } from "../../store/settingsStore";
 
@@ -11,7 +11,6 @@ export interface PipelineOutput {
 
 export async function runPromptPipeline(
     text: string,
-    plan: UserPlan,
     preference: LLMPreference,
     activeMode: string
 ): Promise<PipelineOutput> {
@@ -22,7 +21,7 @@ export async function runPromptPipeline(
     console.log("[1] Analysis:", analysis);
 
     // 2. Decide (The Brain)
-    const strategy = decideStrategy(analysis, plan, preference, activeMode);
+    const strategy = decideStrategy(analysis, preference, activeMode);
     console.log("[2] Strategy:", strategy);
 
     // 3. Generate (The Execution)

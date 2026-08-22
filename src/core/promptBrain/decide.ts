@@ -17,7 +17,6 @@ export interface Strategy {
 import { LLMPreference } from "../../store/settingsStore";
 import { useSettingsStore } from '../../store/settingsStore';
 
-export type UserPlan = 'FREE' | 'PRO';
 
 // 🔥 MASTER SYSTEM PROMPT (Internal – NEVER shown)
 const MASTER_SYSTEM_PROMPT = `You are an elite prompt engineer embedded inside a professional AI product.
@@ -39,7 +38,6 @@ Constraints:
 
 export function decideStrategy(
     analysis: AnalysisResult,
-    _plan: UserPlan,
     preference: LLMPreference,
     activeModeName: string
 ): Strategy {

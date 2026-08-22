@@ -12,7 +12,10 @@ import { getLLMAdapter } from "./adapters";
 import { useHistoryStore } from './store/historyStore';
 
 function App() {
-  const { user, isAuthenticated, plan, logout, setPlan, updateProfile, login } = useUserStore();
+  // Kept solely to type-check an unreachable legacy billing panel while it is removed in a follow-up cleanup.
+  const plan: string = 'FREE';
+  const setPlan = (_value: string) => undefined;
+  const { user, isAuthenticated, logout, updateProfile, login } = useUserStore();
   const { 
     llmPreference, setLLMPreference, 
     theme, setTheme, 
@@ -71,7 +74,7 @@ function App() {
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
 
   // Ollama Testing States
-  const [ollamaModels, setOllamaModels] = useState<string[]>(["llama3", "llama3.2", "phi3", "mistral", "gemma"]);
+  const [ollamaModels, setOllamaModels] = useState<string[]>([]);
   const [isFetchingModels, setIsFetchingModels] = useState(false);
   const [ollamaStatus, setOllamaStatus] = useState<'idle' | 'connected' | 'error'>('idle');
   const [testPrompt, setTestPrompt] = useState("Write a one-line motivational quote.");
@@ -98,10 +101,11 @@ function App() {
       const data = await response.json();
       if (data.models && Array.isArray(data.models)) {
         const models = data.models.map((m: any) => m.name);
+        if (models.length === 0) throw new Error("Ollama is running but no local models are installed. Run: ollama pull llama3.2");
         setOllamaModels(models);
-        if (models.length > 0 && !models.includes(ollamaModel)) {
-          setOllamaModel(models[0]);
-        }
+        // Use a discovered model immediately for Ctrl+P/Ctrl+S/Ctrl+E requests.
+        setOllamaModel(models[0]);
+        setLLMPreference('OLLAMA');
         setOllamaStatus('connected');
       } else {
         throw new Error("No models array found in Ollama response");
@@ -109,7 +113,7 @@ function App() {
     } catch (e: any) {
       console.error("Failed to connect to Ollama:", e);
       setOllamaStatus('error');
-      setOllamaStatusError(e.message || "Ensure Ollama is running and CORS is configured.");
+      setOllamaStatusError(e.message || "Ensure Ollama is running at this URL.");
     } finally {
       setIsFetchingModels(false);
     }
@@ -129,6 +133,7 @@ function App() {
         activeFetch = tauriFetch;
       }
 
+      if (ollamaStatus !== 'connected') throw new Error('Connect to Ollama and choose a model before testing.');
       const cleanUrl = ollamaUrl.endsWith("/") ? ollamaUrl.slice(0, -1) : ollamaUrl;
       const response = await activeFetch(`${cleanUrl}/api/generate`, {
         method: "POST",
@@ -657,23 +662,7 @@ function App() {
 
             </nav>
 
-            {/* Upgrade Card */}
             <div className="px-2 mt-auto pb-2 flex flex-col gap-6">
-              {/* Upgrade Card */}
-              <div className="bg-indigo-50/40 rounded-2xl p-4 border border-indigo-50/50">
-                <div className="flex flex-col gap-2">
-                  <div>
-                    <h3 className="font-bold text-gray-900 text-sm">Prompt X Pro</h3>
-                    <p className="text-xs text-gray-500 leading-tight mt-0.5">
-                      Unlock advanced models & custom modes
-                    </p>
-                  </div>
-                  <button className="w-full py-2.5 bg-gray-900 hover:bg-gray-800 text-white text-xs font-semibold rounded-lg transition-all shadow-sm mt-1">
-                    Upgrade to Pro
-                  </button>
-                </div>
-              </div>
-
               {/* Value Signal */}
               <div className="flex items-center gap-2 px-1 text-sm text-gray-400">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-yellow-500"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
@@ -1291,13 +1280,12 @@ function App() {
                     ))}
                   </div>
 
-                  {/* Custom Modes PRO Section */}
+                  {/* Custom Modes */}
                   <div className="mb-8 p-0.5 rounded-[2rem] bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 shadow-xl shadow-indigo-500/10 transition-all transform hover:scale-[1.01]">
                     <div className="bg-white dark:bg-[#1a1a1a] rounded-[1.95rem] p-8 flex flex-col md:flex-row gap-8 items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-4">
                           <h3 className="text-xl font-bold text-gray-900 dark:text-white">Custom Modes</h3>
-                          <span className="px-2 py-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg shadow-indigo-500/20">PRO</span>
                         </div>
                         <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed mb-6">
                           Design your own prompt behavior with system instructions, tone rules, and output style.
@@ -1317,13 +1305,7 @@ function App() {
                       </div>
                       <div className="shrink-0">
                         <button 
-                          onClick={() => {
-                            if (plan === 'FREE') {
-                              setPlan('PRO');
-                            } else {
-                              setIsCreatingMode(true);
-                            }
-                          }}
+                          onClick={() => setIsCreatingMode(true)}
                           className="px-8 py-4 bg-black dark:bg-white text-white dark:text-black text-sm font-black rounded-2xl shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-2 group"
                         >
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-90 transition-transform"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -1439,7 +1421,7 @@ function App() {
                 {/* Settings Sub-sidebar */}
                 <div className="w-56 border-r border-gray-200 dark:border-white/5 bg-white dark:bg-[#1a1a1a] pt-8 px-4 flex flex-col gap-1 rounded-tr-3xl transition-colors duration-300">
                   <h3 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-3 px-2">Settings</h3>
-                  {['General', 'AI & Models', 'Modes', 'Shortcuts', 'Privacy', 'Billing', 'About'].map(item => (
+                  {['General', 'AI & Models', 'Modes', 'Shortcuts', 'Privacy', 'About'].map(item => (
                     <button key={item} onClick={() => setSettingsTab(item)} className={`text-left px-4 py-2.5 rounded-2xl text-sm font-bold transition-colors ${settingsTab === item ? 'bg-black dark:bg-white text-white dark:text-black shadow-md' : 'text-gray-500 hover:bg-white hover:text-gray-900 dark:hover:text-white'}`}>{item}</button>
                   ))}
                 </div>
@@ -1460,12 +1442,6 @@ function App() {
                                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white transition-colors duration-300">{user?.name}</h3>
                                 <div className="text-sm text-gray-500 dark:text-gray-400">{user?.email}</div>
                                 <div className="mt-1 flex items-center gap-2">
-                                  <span 
-                                    onClick={() => setPlan(plan === 'FREE' ? 'PRO' : 'FREE')}
-                                    className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded cursor-pointer transition-all ${plan === 'PRO' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
-                                  >
-                                    {plan} Plan
-                                  </span>
                                   <button onClick={logout} className="text-[10px] font-bold text-red-500 hover:text-red-600 uppercase tracking-wide ml-2">Logout</button>
                                 </div>
                               </div>
@@ -1652,7 +1628,6 @@ function App() {
                               { label: 'Customize modes', tab: 'Modes', icon: 'zap' },
                               { label: 'Change AI model', tab: 'AI & Models', icon: 'cpu' },
                               { label: 'Manage shortcuts', tab: 'Shortcuts', icon: 'command' },
-                              { label: 'Billing & Usage', tab: 'Billing', icon: 'credit-card' }
                             ].map(item => (
                               <button 
                                 key={item.label}
@@ -2317,22 +2292,19 @@ function App() {
                                 </div>
                               </label>
 
-                              <label className={`flex items-center gap-4 group ${plan === 'FREE' ? 'opacity-50 grayscale cursor-not-allowed' : 'cursor-pointer'}`}>
+                              <label className="flex items-center gap-4 cursor-pointer group">
                                 <div className="relative inline-flex items-center">
                                   <input 
                                     type="checkbox" 
                                     checked={storeLocallyOnly} 
-                                    onChange={(e) => {
-                                      if (plan === 'PRO') setStoreLocallyOnly(e.target.checked);
-                                    }}
-                                    disabled={plan === 'FREE'}
+                                    onChange={(e) => setStoreLocallyOnly(e.target.checked)}
                                     className="sr-only peer" 
                                   />
                                   <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600 transition-all"></div>
                                 </div>
                                 <div className="flex-1">
-                                  <span className="text-sm font-bold text-gray-900 dark:text-white transition-colors">Store prompt history locally only <span className="text-[10px] bg-indigo-500 text-white px-1.5 py-0.5 rounded ml-2 uppercase font-black tracking-widest">PRO</span></span>
-                                  <p className="text-xs text-gray-500 dark:text-gray-500">Bypass cloud sync and keep all history on this device.</p>
+                                  <span className="text-sm font-bold text-gray-900 dark:text-white transition-colors">Store prompt history locally only</span>
+                                  <p className="text-xs text-gray-500 dark:text-gray-500">Keep history on this device. Prompt X does not provide cloud sync.</p>
                                 </div>
                               </label>
                             </div>
@@ -2394,7 +2366,7 @@ function App() {
                         </div>
                       </>
                     )}
-                    {settingsTab === 'Billing' && (
+                    {false && settingsTab === 'Billing' && (
                       <div className="flex flex-col gap-8 transition-all duration-300">
                         <div className="flex justify-between items-center">
                           <div>

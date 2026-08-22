@@ -23,14 +23,12 @@ export const OllamaAdapter: LLMAdapter = {
         const baseUrl = storeState.ollamaUrl || "http://localhost:11434";
         const model = storeState.ollamaModel || "llama3";
 
-        const ollamaUrl = `${baseUrl.replace(/\/(api\/.*)?\/?$/, '')}/api/generate`;
+        const ollamaUrl = `${baseUrl.replace(/\/$/, '').replace(/\/api\/.*$/, '')}/api/generate`;
 
         try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000);
-
             const activeFetch = await getFetch();
-
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 60_000);
             const response = await activeFetch(ollamaUrl, {
                 method: "POST",
                 headers: {
@@ -59,7 +57,10 @@ export const OllamaAdapter: LLMAdapter = {
         } catch (error: any) {
             console.error('[Ollama] API Failed:', error);
             // Warn about CORS or connection
-            throw new LLMRequestError(error.message || `Unable to reach Ollama at ${ollamaUrl}.`, 'Ollama');
+            const message = error?.name === 'AbortError'
+                ? `Ollama did not respond within 60 seconds at ${ollamaUrl}.`
+                : `${error.message || 'Connection failed.'} Check that Ollama is running and that the selected model is installed.`;
+            throw new LLMRequestError(message, 'Ollama');
         }
     }
 };

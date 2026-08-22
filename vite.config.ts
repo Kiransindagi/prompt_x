@@ -16,7 +16,9 @@ export default defineConfig(async () => ({
   server: {
     port: 1420,
     strictPort: true,
-    host: host || false,
+    // Bind IPv4 explicitly: some Windows/browser configurations resolve localhost to
+    // 127.0.0.1 first and cannot reach a server listening only on ::1.
+    host: host || "127.0.0.1",
     hmr: host
       ? {
           protocol: "ws",
